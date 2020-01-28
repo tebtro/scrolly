@@ -1,0 +1,29 @@
+# Ignore everything
+*
+
+# Unignore files with an extension
+!*.*
+
+# Unignore directories
+!*/
+
+
+
+build
+
+*.exe
+*.x86
+*.x86_64
+
+*.dll
+*.lib
+*.obj
+
+*.map
+*.pdb
+
+*.out
+*.exp
+
+run_tree/x86/
+run_tree/x86_64/
