@@ -45,6 +45,12 @@ struct Loaded_Bitmap {
     u32 *pixels;
 };
 
+struct Tilemap {
+    u32 width;
+    u32 height;
+    u32 *tiles;
+};
+
 struct Player {
     f32 pos_x;
     f32 pos_y;
@@ -54,6 +60,7 @@ struct Player {
 
 struct Game {
     Loaded_Bitmap bmp_background;
+    Tilemap *current_tilemap;
     Player player;
 };
 
@@ -62,8 +69,9 @@ struct Game_State {
     Game *game;
     
     b32 show_titlescreen = true;
-    
     u32 active_controller_index;
+    
+    f32 tile_size;
     
     Loaded_Bitmap bmp_font;
 };

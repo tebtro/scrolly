@@ -203,14 +203,52 @@ render_bitmap(Game_Offscreen_Buffer *buffer, Loaded_Bitmap *bitmap,
 }
 
 internal void
-render_background(Game_Offscreen_Buffer *buffer, Loaded_Bitmap *bitmap, s32 back_offset_x, s32 back_offset_y) {
-    render_bitmap(buffer, bitmap,
-                  (f32)-back_offset_x, (f32)-back_offset_y);
+render_background(Game_Offscreen_Buffer *buffer, Loaded_Bitmap *bitmap, Game *game, f32 parallax_level) {
+    f32 offset_x = (f32)((s32)((f32)game->player.pos_x * parallax_level) % game->bmp_background.width);
+    offset_x = -offset_x;
+    f32 offset_y = 0.f;
+    assert(offset_y == 0);
     
-    assert(back_offset_y == 0);
-    render_bitmap(buffer, bitmap,
-                  (f32)bitmap->width - (f32)back_offset_x, 
-                  (f32)back_offset_y);
+    render_bitmap(buffer, bitmap, offset_x, -offset_y);
+    
+    f32 x = offset_x;
+    if (x > 0.f) {
+        x -= (f32)bitmap->width;
+    }
+    else {
+        x += (f32)bitmap->width;
+    }
+    render_bitmap(buffer, bitmap, x, offset_y);
+}
+
+internal void
+render_world(Game_Offscreen_Buffer *buffer, Game_State *game_state) {
+    Tilemap *tilemap = game_state->game->current_tilemap;
+    
+    for (u32 x = 0; x < tilemap->width; ++x) {
+        for (u32 y = 0; y < tilemap->height; ++y) {
+            f32 r = 0.f, g = 0.f, b = 0.f;
+            u32 value = tilemap->tiles[x * tilemap->height + y];
+            if (value == 0) {
+                continue;
+            }
+            if (value == 1) {
+                r = 1.0f;
+            }
+            
+            Vector2 min = {
+                ((f32)x * game_state->tile_size) - game_state->game->player.pos_x,
+                ((f32)y * game_state->tile_size) - game_state->game->player.pos_y
+            };
+            Vector2 max = {
+                min.x + game_state->tile_size,
+                min.y + game_state->tile_size
+            };
+            render_rectangle(buffer, 
+                             min, max,
+                             r, g, b);
+        }
+    }
 }
 
 
@@ -408,6 +446,33 @@ extern "C" GAME_UPDATE_AND_RENDER_SIG(game_update_and_render) {
         Game *game = game_state->game;
         *game = {};
         
+        //
+        game_state->tile_size = (f32)buffer->height / 10.f;
+        
+        // @note Tilemap
+        Tilemap *tilemap = push_struct(&game_state->game_arena, Tilemap);
+        tilemap->width = 20;
+        tilemap->height = 10;
+        tilemap->tiles = push_array(&game_state->game_arena, (tilemap->width * tilemap->height), u32);
+        u32 tiles[10][20] {
+            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0},
+            {0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            {0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0},
+            {0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,1,0},
+            {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        };
+        for (int x = 0; x < 20; ++x) {
+            for (int y = 0; y < 10; ++y) {
+                tilemap->tiles[x * tilemap->height + y] = tiles[y][x];
+            }
+        }
+        game->current_tilemap = tilemap;
+        
         // @note load bitmaps
         game->bmp_background = load_bitmap(memory->platform_read_entire_file, "../run_tree/data/sprites/background.bmp");
         game->player.bmp = load_bitmap(memory->platform_read_entire_file, "../run_tree/data/sprites/pacman_closed.bmp");
@@ -494,9 +559,8 @@ extern "C" GAME_UPDATE_AND_RENDER_SIG(game_update_and_render) {
     //
     clear_buffer(buffer);
     
-    s32 back_offset_x = (s32)game->player.pos_x % game->bmp_background.width;
-    s32 back_offset_y = 0;
-    render_background(buffer, &game->bmp_background, back_offset_x, back_offset_y);
+    render_background(buffer, &game->bmp_background, game, 0.5f);
+    render_world(buffer, game_state);
     render_bitmap(buffer, &game->player.bmp,
                   (f32)buffer->width*0.5f, (f32)buffer->height*0.5f);
     
